@@ -1,16 +1,16 @@
 {{ define "Edit" }}
   {{ template "Header" }}
     {{ template "Menu" }} 
-   <h2>Edit Name and City</h2>  
+   <h2>Edit Pet Information</h2>  
     <form method="POST" action="update">
       <input type="hidden" name="uid" value="{{ .Id }}" />
       <label> Name </label><input type="text" name="name" value="{{ .Name }}"  /><br />
       <label> Owner </label><input type="text" name="owner" value="{{ .Owner }}"  /><br />
       <label> Species </label><input type="text" name="species" value="{{ .Species }}"  /><br />
       <label> Sex </label><input type="text" name="sex" value="{{ .Sex }}"  /><br />
-      <label> Birth </label><input type="text" name="birth" value="{{ .Birth }}"  /><br />
+      <label> Birth </label><input type="da" name="birth" value="{{ .Birth }}"  /><br />
       <label> Death </label><input type="text" name="death" value="{{ .Death }}"  /><br />
-      <input type="submit" value="Save user" />
+      <input type="submit" value="Save pet" />
     </form><br />    
   {{ template "Footer" }}
 {{ end }}

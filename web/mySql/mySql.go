@@ -115,22 +115,21 @@ func show(w http.ResponseWriter, r *http.Request) {
 	tmpl.ExecuteTemplate(w, "Show", pet)
 }
 
-//IS NOT WORKING
 func new(w http.ResponseWriter, r *http.Request) {
 	tmpl.ExecuteTemplate(w, "New", nil)
 }
 
-// func edit(w http.ResponseWriter, r *http.Request) {
-// 	selDB := queryPetId(r)
+func edit(w http.ResponseWriter, r *http.Request) {
+	selDB := queryPetId(r)
 
-// 	pet := Pet{}
+	pet := Pet{}
 
-// 	for selDB.Next() {
-// 		scanPet(selDB, pet)
-// 	}
+	for selDB.Next() {
+		pet = scanPet(selDB, pet)
+	}
 
-// 	tmpl.ExecuteTemplate(w, "Edit", pet)
-// }
+	tmpl.ExecuteTemplate(w, "Edit", pet)
+}
 
 func convertDateToTime(d string) time.Time {
 	t, err := time.Parse(layoutDate, d)
@@ -146,12 +145,12 @@ func insert(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "POST" {
 
-		name := r.FormValue("Name")
-		owner := r.FormValue("Owner")
-		species := r.FormValue("Species")
-		sex := r.FormValue("Sex")
-		birth := convertDateToTime(r.FormValue("Birth"))
-		death := convertDateToTime(r.FormValue("Death"))
+		name := r.FormValue("name")
+		owner := r.FormValue("owner")
+		species := r.FormValue("species")
+		sex := r.FormValue("sex")
+		birth := convertDateToTime(r.FormValue("birth"))
+		death := convertDateToTime(r.FormValue("death"))
 
 		insForm, err := db.Prepare("INSERT INTO pet(name, owner, species, sex, birth, death) VALUES(?,?,?,?,?,NULLIF(?,'0000-00-00'))")
 
@@ -172,33 +171,35 @@ func insert(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", 301)
 }
 
-// func update(w http.ResponseWriter, r *http.Request) {
-// 	db := dbConnect()
+func update(w http.ResponseWriter, r *http.Request) {
+	db := dbConnect()
 
-// 	if r.Method == "POST" {
-// 		name := r.FormValue("name")
-// 		owner := r.FormValue("owner")
-// 		species := r.FormValue("species")
-// 		sex := r.FormValue("sex")
-// 		birth := r.FormValue("birth")
-// 		death := r.FormValue("death")
-// 		id := r.FormValue("uid")
+	if r.Method == "POST" {
+		name := r.FormValue("name")
+		owner := r.FormValue("owner")
+		species := r.FormValue("species")
+		sex := r.FormValue("sex")
+		birth := convertDateToTime(r.FormValue("birth"))
+		death := convertDateToTime(r.FormValue("death"))
+		id := r.FormValue("uid")
 
-// 		insForm, err := db.Prepare("UPDATE pet SET name=?, owner=?, species=?, sex=?, birth=?, death=? WHERE id=?")
+		insForm, err := db.Prepare("UPDATE pet SET name=?, owner=?, species=?, sex=?, birth=?, death=NULLIF(?,'0000-00-00') WHERE id=?")
 
-// 		logError(err)
+		logError(err)
 
-// 		insForm.Exec(name, owner, species, sex, birth, death, id)
-// 		log.Println("UPDATE: name: " + name +
-// 			" | owner: " + owner +
-// 			" | species: " + species +
-// 			" | sex: " + sex +
-// 			" | birth: " + birth +
-// 			" | death: " + death)
-// 	}
-// 	defer db.Close()
-// 	http.Redirect(w, r, "/", 301)
-// }
+		sqlResult, err := insForm.Exec(name, owner, species, sex, birth, death, id)
+		logError(err)
+		log.Println("UPDATE: name: " + name +
+			" | owner: " + owner +
+			" | species: " + species +
+			" | sex: " + sex +
+			" | birth: " + birth.Format(layoutDate) +
+			" | death: " + death.Format(layoutDate))
+		log.Println(sqlResult)
+	}
+	defer db.Close()
+	http.Redirect(w, r, "/", 301)
+}
 
 func delete(w http.ResponseWriter, r *http.Request) {
 	db := dbConnect()
@@ -218,9 +219,9 @@ func main() {
 	http.HandleFunc("/", index)
 	http.HandleFunc("/show", show)
 	http.HandleFunc("/new", new)
-	// http.HandleFunc("/edit", edit)
+	http.HandleFunc("/edit", edit)
 	http.HandleFunc("/insert", insert)
-	// http.HandleFunc("/update", update)
+	http.HandleFunc("/update", update)
 	http.HandleFunc("/delete", delete)
 	http.ListenAndServe(":8080", nil)
 }
