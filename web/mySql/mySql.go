@@ -5,9 +5,12 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
+
+const layoutDate string = "2006-01-02"
 
 type Pet struct {
 	Id      int    `json:"id"`
@@ -37,10 +40,17 @@ func dbConnect() (db *sql.DB) {
 	return db
 }
 
+func convertTimeToDate(t sql.NullTime) string {
+	if t.Valid {
+		return t.Time.Format(layoutDate)
+	}
+	return ""
+}
+
 func scanPet(selDB *sql.Rows, pet Pet) Pet {
 	var id int
 	var name, owner, species, sex sql.NullString
-	var birth, death sql.NullString
+	var birth, death sql.NullTime
 
 	err := selDB.Scan(&id, &name, &owner, &species, &sex, &birth, &death)
 
@@ -51,8 +61,8 @@ func scanPet(selDB *sql.Rows, pet Pet) Pet {
 	pet.Owner = owner.String
 	pet.Species = species.String
 	pet.Sex = sex.String
-	pet.Birth = birth.String
-	pet.Death = death.String
+	pet.Birth = convertTimeToDate(birth)
+	pet.Death = convertTimeToDate(death)
 
 	return pet
 }
@@ -87,8 +97,6 @@ func index(w http.ResponseWriter, r *http.Request) {
 		res = append(res, pet)
 	}
 
-	log.Println(res)
-
 	err = tmpl.ExecuteTemplate(w, "Index", res)
 
 	logError(err)
@@ -108,9 +116,9 @@ func show(w http.ResponseWriter, r *http.Request) {
 }
 
 //IS NOT WORKING
-// func new(w http.ResponseWriter, r *http.Request) {
-// 	tmpl.ExecuteTemplate(w, "New", nil)
-// }
+func new(w http.ResponseWriter, r *http.Request) {
+	tmpl.ExecuteTemplate(w, "New", nil)
+}
 
 // func edit(w http.ResponseWriter, r *http.Request) {
 // 	selDB := queryPetId(r)
@@ -124,32 +132,45 @@ func show(w http.ResponseWriter, r *http.Request) {
 // 	tmpl.ExecuteTemplate(w, "Edit", pet)
 // }
 
-// func insert(w http.ResponseWriter, r *http.Request) {
-// 	db := dbConnect()
+func convertDateToTime(d string) time.Time {
+	t, err := time.Parse(layoutDate, d)
 
-// 	if r.Method == "POST" {
-// 		name := r.FormValue("name")
-// 		owner := r.FormValue("owner")
-// 		species := r.FormValue("species")
-// 		sex := r.FormValue("sex")
-// 		birth := r.FormValue("birth")
-// 		death := r.FormValue("death")
+	if err != nil {
+		return time.Time{}
+	}
+	return t
+}
 
-// 		insForm, err := db.Prepare("INSERT INTO pet(name, owner, species, sex, birth, death) VALUES(?,?,?,?,?,?")
+func insert(w http.ResponseWriter, r *http.Request) {
+	db := dbConnect()
 
-// 		logError(err)
+	if r.Method == "POST" {
 
-// 		insForm.Exec(name, owner, species, sex, birth, death)
-// 		log.Println("INSERT: name: " + name +
-// 			" | owner: " + owner +
-// 			" | species: " + species +
-// 			" | sex: " + sex +
-// 			" | birth: " + birth +
-// 			" | death: " + death)
-// 	}
-// 	defer db.Close()
-// 	http.Redirect(w, r, "/", 301)
-// }
+		name := r.FormValue("Name")
+		owner := r.FormValue("Owner")
+		species := r.FormValue("Species")
+		sex := r.FormValue("Sex")
+		birth := convertDateToTime(r.FormValue("Birth"))
+		death := convertDateToTime(r.FormValue("Death"))
+
+		insForm, err := db.Prepare("INSERT INTO pet(name, owner, species, sex, birth, death) VALUES(?,?,?,?,?,NULLIF(?,'0000-00-00'))")
+
+		logError(err)
+
+		sqlResult, err := insForm.Exec(name, owner, species, sex, birth, death)
+
+		logError(err)
+		log.Println("INSERT: name: " + name +
+			" | owner: " + owner +
+			" | species: " + species +
+			" | sex: " + sex +
+			" | birth: " + birth.Format(layoutDate) +
+			" | death: " + death.Format(layoutDate))
+		log.Println(sqlResult)
+	}
+	defer db.Close()
+	http.Redirect(w, r, "/", 301)
+}
 
 // func update(w http.ResponseWriter, r *http.Request) {
 // 	db := dbConnect()
@@ -196,9 +217,9 @@ func main() {
 	log.Println("Server started on: http://localhost:8080")
 	http.HandleFunc("/", index)
 	http.HandleFunc("/show", show)
-	// http.HandleFunc("/new", new)
+	http.HandleFunc("/new", new)
 	// http.HandleFunc("/edit", edit)
-	// http.HandleFunc("/insert", insert)
+	http.HandleFunc("/insert", insert)
 	// http.HandleFunc("/update", update)
 	http.HandleFunc("/delete", delete)
 	http.ListenAndServe(":8080", nil)
