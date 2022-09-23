@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-var value int = 60
+var value int = 20
 
 func BenchmarkRecursiveFat(b *testing.B) {
 	var r int
